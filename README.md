@@ -1,6 +1,6 @@
 
 <p align="center">
-  <h1 align="center">3D X-Ray Object Detector </h1>
+  <h1 align="center">3D X-Ray Object bbox Detector </h1>
   <p align="center">
     <img src="./assets/teaser.png" alt="Teaser" width="100%">
   </p>
