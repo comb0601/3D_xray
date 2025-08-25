@@ -1,12 +1,10 @@
 
 <p align="center">
-  <h1 align="center">X-Ray 3D bbox Object Detector</h1>
-"center">
+  <h1 align="center">3D X-Ray Object Detector </h1>
+  <p align="center">
     <img src="./assets/teaser.png" alt="Teaser" width="100%">
   </p>
   <p align="center">
-      <img src="https://img.shields.io/badge/GitHub-Code-black?style=flat&logo=github&logoColor=white" alt="GitHub">
-    </a>
     <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
     <img src="https://img.shields.io/badge/CUDA-optional-76B900.svg?logo=nvidia&logoColor=white" alt="CUDA optional">
     <img src="https://img.shields.io/badge/YOLO-ultralytics-orange.svg" alt="YOLO">
