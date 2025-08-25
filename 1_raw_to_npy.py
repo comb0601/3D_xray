@@ -176,8 +176,6 @@ def process_raw_file(raw_file_path, output_folder, patient_id):
 
 
 def main():
-    from license.license_check import check_license
-    check_license()
     parser = argparse.ArgumentParser(description='Convert raw image files to obj and npy formats')
     parser.add_argument('--raw_folder', default='data/raw_voxel', help='Folder containing raw files (default: data/raw_voxel)')
     parser.add_argument('--id', required=True, help='Patient ID to process')

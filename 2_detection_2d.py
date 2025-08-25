@@ -2,7 +2,6 @@ import os
 import json
 import argparse
 import cv2
-import time
 from ultralytics import YOLO
 
 def parse_arguments():
@@ -40,21 +39,10 @@ def draw_detections(image, detections):
     return img_copy
 
 def main():
-    from license.license_check import check_license
-    check_license()
     args = parse_arguments()
-    
-    # Measure model loading time
-    print("\n" + "="*50)
-    print("Loading YOLO model...")
-    model_load_start = time.time()
     
     # Load the YOLO model
     model = YOLO(args.model)
-    
-    model_load_time = time.time() - model_load_start
-    print(f"Model loaded in {model_load_time:.2f} seconds")
-    print("="*50 + "\n")
     
     # Class names from the configuration
     class_names = [
@@ -81,10 +69,6 @@ def main():
     # Process each image in the input folder
     image_files = [f for f in os.listdir(args.input) if f.endswith(('.jpg', '.jpeg', '.png'))]
     
-    total_inference_time = 0
-    total_images = 0
-    total_objects_detected = 0
-    
     for img_file in image_files:
         img_path = os.path.join(args.input, img_file)
         img = cv2.imread(img_path)
@@ -92,13 +76,9 @@ def main():
             print(f"Error reading image: {img_path}")
             continue
         
-        # Measure inference time
-        inference_start = time.time()
+
         results = model(img, conf=args.conf_thres)[0]
-        inference_time = time.time() - inference_start
         
-        total_inference_time += inference_time
-        total_images += 1
 
         detections = []
         for box in results.boxes:
@@ -114,7 +94,6 @@ def main():
                 "score": conf
             })
         
-        total_objects_detected += len(detections)
 
         json_output = {
             "count": len(detections),
@@ -131,19 +110,7 @@ def main():
         img_with_detections = draw_detections(img, detections)
         cv2.imwrite(output_img_path, img_with_detections)
         
-        print(f"Processed {img_file} - Found {len(detections)} objects - Inference time: {inference_time:.4f} seconds")
-
-    # Print timing summary
-    print("\n" + "="*50)
-    print("2D Detection SUMMARY:")
-    print("="*50)
-    print(f"Total images processed: {total_images}")
-    print(f"Total objects detected: {total_objects_detected}")
-    print(f"Model loading time: {model_load_time:.2f} seconds")
-    if total_images > 0:
-        print(f"Total inference time: {total_inference_time:.2f} seconds")
-        print(f"Average inference time per image: {total_inference_time/total_images:.4f} seconds")
-    print("="*50)
+        print(f"Processed {img_file} - Found {len(detections)} objects")
 
 if __name__ == "__main__":
     main()

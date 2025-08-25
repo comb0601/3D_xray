@@ -189,8 +189,6 @@ def calibrate(input_dir, DSD_init, n_iter, output_file, optim_dsd, optim_beads, 
     calibrator.save_params(output_path=output_file)
 
 if __name__ == "__main__":
-    from license.license_check import check_license
-    check_license()
     parser = argparse.ArgumentParser(description="Optimize fanbeam camera parameters and optionally optimize 3D bead locations using reprojection error.")
     parser.add_argument('--input', required=False, default="data/calibration", help="Calibration path containing sets of x-ray images.")
     parser.add_argument('--DSD', required=False, default=1100, help="Initial Distance from source to detector (DSD).")

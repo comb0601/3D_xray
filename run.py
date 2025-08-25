@@ -22,8 +22,6 @@ def run_command(command):
         return False
 
 def main():
-    from license.license_check import check_license
-    check_license()
     args = parse_arguments()
     
     # Check if --list is specified
