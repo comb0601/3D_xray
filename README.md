@@ -1,14 +1,10 @@
 
 <p align="center">
-  <h1 align="center">3D X-Ray Threat Object Detector & Reconstructor</h1>
-  <p align="center">
-    <a href="https://www.secern.ai/"><strong>SECERN AI</strong></a>
-  </p>
-  <p align="center">
+  <h1 align="center">X-Ray 3D bbox Object Detector</h1>
+"center">
     <img src="./assets/teaser.png" alt="Teaser" width="100%">
   </p>
   <p align="center">
-    <a href="https://github.com/CUBOX-Co-Ltd/molit_xray_3d">
       <img src="https://img.shields.io/badge/GitHub-Code-black?style=flat&logo=github&logoColor=white" alt="GitHub">
     </a>
     <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
