@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            // "program": "run.py", "args": ["--id", "35671", "--vis"],
+
+            // Visual Hull Visualization
+            "program": "3_visual_hull.py",
+            "args": ["--name", "35672", "--visualization", "True", "--margin", "0.1", "0.1"],
+
+            // // Run evaluation 
+            // "program": "eval.py",
+            // "args": ["--id", "35672", "--save_images", "--json_path", "data/inference_results/35672",],
+
+            "console": "integratedTerminal"
+        }
+    ]
+}

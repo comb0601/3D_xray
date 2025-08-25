@@ -1,0 +1,18 @@
+data/ckpts/best.pt
+data/bbox3d/35671
+data/bbox3d/35672
+data/bbox3d/35823
+data/inference_results/35671
+data/inference_results/35672
+data/inference_results/35823
+data/raw_voxel/35671
+data/raw_voxel/35672
+data/raw_voxel/35823
+data/raw_voxel/AA124110403050300003567100_L_512x512x619_8u.raw
+data/raw_voxel/AA124110403051100003567200_L_512x512x632_8u.raw
+data/raw_voxel/AA124110403301600003582300_L_512x512x621_8u.raw
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
