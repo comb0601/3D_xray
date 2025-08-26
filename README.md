@@ -238,6 +238,30 @@ Use the following sample bundle to quickly try the pipeline:
 
 ---
 
-<p align="center">
-  <sub>Maintained by <a href="https://www.secern.ai/">SECERN AI</a>. Contributions & issues are welcome.</sub>
-</p>
+
+![Example GIF](figs/calibration.gif)
+
+## Open3d viewer
+
+    python viewer_o3d.py
+
+![IMAGE](figs/viewer_3d.png)
+
+## Box fitting 
+
+    python fit_bbox.py
+
+![IMAGE](figs/visualhull.gif)
+![IMAGE](figs/bbox2d.png)
+
+## Triangulation 
+
+    python triangulation.py
+
+![IMAGE](figs/triangulation.png)
+
+## VisualHull RANSAC
+
+    python ransac_visualhull.py
+
+![IMAGE](figs/ransac.gif)
