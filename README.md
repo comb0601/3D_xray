@@ -1,250 +1,332 @@
+# Multiview X‑Ray 3D Hazardous Object Detection
 
 <p align="center">
-  <h1 align="center">3D X-Ray Object bbox Detector </h1>
-  <p align="center">
-    <img src="./assets/teaser.png" alt="Teaser" width="100%">
-  </p>
-  <p align="center">
-    <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
-    <img src="https://img.shields.io/badge/CUDA-optional-76B900.svg?logo=nvidia&logoColor=white" alt="CUDA optional">
-    <img src="https://img.shields.io/badge/YOLO-ultralytics-orange.svg" alt="YOLO">
-    <img src="https://img.shields.io/badge/Open3D-ready-5C5C5C.svg" alt="Open3D">
-  </p>
+  <img src="assets/teaser.png" width="100%" alt="teaser">
 </p>
 
----
-
-## Overview
-
-This repository provides an end-to-end pipeline that **detects prohibited (threat) items in X-ray images** and **reconstructs their 3D bounding boxes** from multiple views.
-
-> **Core idea**  
-> Given multi-view X-ray scans, we run a 2D detector (YOLO) per view and fuse detections through a **visual-hull style** reconstruction to produce a consolidated **3D bounding box**.
+Robust end‑to‑end pipeline for reconstructing **3D bounding boxes of hazardous objects from multiview X‑ray images**. The system couples a high‑recall YOLO‑based 2D detector with a **visual‑hull** intersection and a **fan‑beam camera geometry** that treats **X as perspective** and **Y as near‑orthographic**, enabling stable height reasoning and efficient 3D recovery even when views are cluttered or partially occluded.
 
 ---
 
-## Table of Contents
-- [Features](#features)
-- [Environment Setup](#environment-setup)
-- [Data & Checkpoints](#data--checkpoints)
-- [Directory Layout](#directory-layout)
-- [Quick Start](#quick-start)
-- [Step-by-Step Pipeline](#step-by-step-pipeline)
-  - [1) Voxel Conversion](#1-voxel-conversion-1_raw_to_npypy)
-  - [2) 2D Object Detection](#2-2d-object-detection-2_detection_2dpy)
-  - [3) 3D Bounding Box via Visual Hull](#3-3d-bounding-box-via-visual-hull-3_visual_hullpy)
-- [Calibration](#calibration)
-- [Sample Data](#sample-data)
-- [Troubleshooting](#troubleshooting)
-- [License & Acknowledgments](#license--acknowledgments)
+## 🌟 News
+- **2025‑09‑04** — [Technical Report](report.pdf) and full code is released.
+- **2024‑12‑30** — Released 2D training & standalone inference under `detector2d/`.
 
 ---
 
-## Features
-
-- 🔎 **2D threat detection** with Ultralytics YOLO  
-- 🧊 **X-ray volume (.raw) → NumPy/OBJ** conversion utilities  
-- 📦 **3D bounding box reconstruction** from multi-view detections (visual-hull approach)  
-- 🖥️ **Optional CUDA acceleration** (where supported)  
-- 🧭 **Interactive 3D visualization** (Open3D) for inspection
+## 🔍 Highlights
+- **Four‑stage pipeline:** (1) 2D detection → (2) visual‑hull voxel constraints → (3) consistency filtering across views → (4) 3D bounding box recovery.
+- **Fan‑beam with orthographic‑Y:** keep perspective in **X** while approximating **Y** as orthographic, simplifying reprojection and height estimation.
+- **Works with ≥2 views** (typical: 9 views) and requires prior calibration.
+- **Evaluation** via 3D→2D reprojection and IoU vs. detected 2D boxes.
+- Modular design: training code for the detector is isolated under `detector2d/`, while the pipeline entry points remain at the repo root.
 
 ---
 
-## Environment Setup
+## 🗂 Repository Structure
 
-> We recommend using a clean Conda environment.
+```text
+.
+├─ calibration.py          # Fan‑beam calibration from beads → npy params
+├─ detector.py             # Pipeline 2D inference → JSON + overlays
+├─ visual_hull.py          # Visual‑hull + 3D bbox recovery + optional viewer
+├─ eval.py                 # Reprojects 3D → 2D and reports IoU stats
+├─ run.py                  # Convenience runner: detection → visual hull
+├─ vh_utils/               # Visual‑hull utilities (IO, geometry, hull ops, viz)
+│  ├─ __init__.py
+│  ├─ io.py
+│  ├─ geometry.py
+│  ├─ hull.py
+│  └─ viz.py
+├─ detector2d/             # 2D training/eval/standalone inference (Ultralytics)
+│  ├─ train.py
+│  ├─ eval.py
+│  ├─ inference.py
+│  └─ configs/config.yaml
+├─ models/
+│  ├─ best.pt              # Inference checkpoint used by pipeline detector
+│  └─ yolo11x.pt           # Optional pretrain for training
+├─ data/
+│  ├─ calibration/
+│  │  ├─ calibration_results.npy
+│  │  └─ 0/{2d.npy,3d.npy}
+│  ├─ image/0/0.png        # Raw multiview images per case ID
+│  ├─ voxel/0/0_512x512x619.npy
+│  ├─ bbox2d/              # detector.py outputs JSON + overlays
+│  ├─ bbox3d/              # visual_hull.py outputs 3D boxes (per class)
+│  └─ eval_results/        # eval.py reports
+├─ assets/                 # README images (teaser, dataset, eval)
+└─ requirements.txt
+```
+
+---
+
+## ⚙️ Installation
 
 ```bash
-conda create -n xray python==3.10
-conda activate xray
+# (Optional) Create a clean env
+conda create -n xray3d python=3.10 -y
+conda activate xray3d
+
+# Install deps
 pip install -r requirements.txt
 ```
 
-**Required software:**
-- Python ≥ 3.10
-- OpenCV, NumPy
-- Open3D
-- Ultralytics YOLO
-- CUDA-capable GPU & drivers (optional, for acceleration)
+`requirements.txt` includes: `numpy`, `opencv-python`, `open3d`, `ultralytics`, `torch`, `torchvision`, `gdown`.
 
 ---
 
-## Data & Checkpoints
+## 📦 Data Layouts
 
-Download the following resources **before** running the pipeline:
-
-- **2D X-ray detector checkpoint (YOLO):**  
-  Download and place in `data/ckpts/best.pt`  
-  ↳ <https://drive.google.com/file/d/1crccaY23NZE9vU3WxRlw-blEJWBfkLwd/view?usp=sharing>
-
-- **Raw voxel volumes (.raw):**  
-  Place `.raw` files under `data/raw_voxel/`  
-  ↳ <https://drive.google.com/drive/folders/1s-IQfyyOerdiZqSI2BXB3QthBzYwHSYp?usp=sharing>
-
----
-
-## Directory Layout
-
-Your project should resemble the following once data/checkpoints are in place:
+### Multiview 3D pipeline (per case ID)
 
 ```
-.
-├── data/
-│   ├── bbox3d/               # 3D bounding box outputs
-│   ├── calibration/          # Calibration results
-│   ├── ckpts/                # Model checkpoints
-│   │   └── best.pt
-│   ├── inference_results/    # 2D detection results (images + JSON)
-│   ├── raw_image/            # Raw X-ray images per ID
-│   └── raw_voxel/            # Raw voxel volumes (.raw)
-│       └── ..._L_512x512x619_8u.raw
-├── 1_raw_to_npy.py           # Voxel converter (.raw → .npy/.obj)
-├── 2_detection_2d.py         # 2D object detection
-├── 3_visual_hull.py          # 3D bbox via visual hull
-├── run.py                    # Full pipeline runner
-└── run.sh                    # (Optional) helper script
+data/
+  calibration/
+    calibration_results.npy
+    0/ {2d.npy, 3d.npy}     # beads for calibration (you can include multiple sets)
+  image/<ID>/  *.png        # multiview X‑ray images for a case
+  voxel/<ID>/  *_WxHxD.npy  # raw 3D points/voxel npy (visualization + scale)
+```
+
+### 2D training dataset (YOLO format)
+
+```
+detector2d/data/
+  images/{train,val,test}/*.png
+  labels/{train,val,test}/*.txt   # YOLO xywh normalized
 ```
 
 ---
 
-## Quick Start
+## 🧠 Method Overview
 
-Run the **entire pipeline** for a given case **ID** (with optional visualization):
+### Fan‑beam camera with orthographic‑Y
+We model each view with per‑camera parameters `[Tx, Tz, θ, DSD]` and a fan‑beam projection. Due to the imaging geometry, vertical scale (Y) is approximately view‑invariant; we therefore keep **perspective** along **X** but treat **Y** as **orthographic**. This simplifies reprojection math and stabilizes height estimation.
+
+### Visual hull on the ground plane (X–Z)
+Given 2D detections across views, we project horizontal bbox constraints into a common X–Z grid and intersect them to obtain a feasible ground‑plane footprint. We summarize the footprint by a **min‑area rectangle** and lift it into 3D using a global Y‑extent derived from the per‑view bbox vertical bounds (orthographic‑Y mapping), with optional margin.
+
+### Multi‑view consistency
+We group detections across views via:
+- **Height consistency:** similar top/bottom Y across views.
+- **Ray‑intersection consistency:** back‑project top bbox corners and require intersecting rays in X–Z for compatibility.
+
+Only candidates supported by ≥ *k* views (default `k=4`) proceed to the hull step.
+
+### Evaluation by reprojection
+Each recovered 3D box is reprojected into each view using the mixed projection (perspective‑X, orthographic‑Y); we compute IoU with available 2D detections and summarize per‑view and global stats.
+
+---
+
+## 🚀 Quickstart (Pipeline)
+
+### 1) Calibration
+
+<p align="center">
+  <img src="assets/beads.png" width="35%" alt="Beads phantom"><br/>
+  Beads phantom used for calibration
+</p>
+
+<p align="center">
+  <img src="assets/calibration_process.gif" width="55%" alt="Calibration process"><br/>
+  Camera calibration process
+</p>
+
+Optimizes `[Tx, Tz, θ]` per camera and optionally `DSD` from 3D–2D bead correspondences.
 
 ```bash
-python run.py --id <ID> --vis
+python calibration.py \
+  --input data/calibration \
+  --DSD 1100 \
+  --iter 10000 \
+  --output data/calibration/calibration_results.npy \
+  --scheduler none
 ```
 
-**Useful flags**
-- `--raw_folder <path>`: folder containing `.raw` files (default: `data/raw_voxel`)
-- `--list`: print available IDs and exit
-- `--vis`: enable interactive 3D visualization
+**Tips**
+- Good defaults: `iter=10000`, `lr=0.1`, `DSD=1100`.
+- Optional flags: `--optim_dsd`, `--optim_beads`, `--scheduler steplr|exponential`.
 
-**Example**
-```bash
-python run.py --id 35671 --vis
-```
+### 2) 2D Detection (pipeline inference)
+Low confidence (e.g., `0.1`) is recommended to favor recall; geometric checks will prune outliers.
 
----
+<p align="center">
+  <img src="assets/detector2d.png" width="35%" alt="detector2d"><br/>
+  2D detection results on x-ray images
+</p>
 
-## Step-by-Step Pipeline
-
-### 1) Voxel Conversion (`1_raw_to_npy.py`)
-Convert X-ray **raw voxel** volumes into NPY/OBJ formats.
-
-```bash
-python 1_raw_to_npy.py --id <ID> [--raw_folder <path>] [--list]
-```
-
-**Flags**
-- `--id`: target case ID (required)
-- `--raw_folder`: path to `.raw` volumes (default: `data/raw_voxel`)
-- `--list`: list available raw IDs and exit
-
-**Output**
-- Converted assets are saved under: `data/raw_voxel/<ID>/`
-
----
-
-### 2) 2D Object Detection (`2_detection_2d.py`)
-Run YOLO on multi-view images to detect potential threats.
 
 ```bash
-python 2_detection_2d.py --input data/raw_image/<ID> \
-  [--conf-thres <float>] [--output-dir <path>] [--model <path>]
+python detector.py \
+  --input data/image/0 \
+  --model models/best.pt \
+  --conf-thres 0.1 \
+  --output-dir data/bbox2d
+# → writes JSON and overlays to data/bbox2d/0/
 ```
 
-**Flags**
-- `--input`: directory of images for the given `<ID>` (required)
-- `--conf-thres`: confidence threshold (default: `0.1`)
-- `--output-dir`: results directory (default: `data/inference_results`)
-- `--model`: YOLO checkpoint path (default: `data/ckpts/best.pt`)
+### 3) Visual Hull + 3D Boxes
+Builds the ground‑plane hull and lifts into 3D using a global Y extent.
 
-**Checkpoint**
-- Download from: <https://drive.google.com/file/d/1crccaY23NZE9vU3WxRlw-blEJWBfkLwd/view?usp=sharing>  
-  Save as: `data/ckpts/best.pt`
-
-**Output**
-- Per-image detections (JSON) + visualization images in `data/inference_results/`
-
----
-
-### 3) 3D Bounding Box via Visual Hull (`3_visual_hull.py`)
-Fuse 2D detections with voxel geometry to estimate **3D bounding boxes**.
+<p align="center">
+  <img src="assets/visualhull_process.gif" width="55%" alt="detector2d"><br/>
+  Visualhull for obtaining ground-plane hull
+</p>
+<p align="center">
+  <img src="assets/ransac_process.gif" width="75%" alt="detector2d"><br/>
+  RANSAC for filtering outliers
+</p>
 
 ```bash
-python 3_visual_hull.py --name <ID> \
-  [--calibration_path <path>] [--margin x y] \
-  [--min_detection <int>] [--visualization <True|False>] \
-  [--line_thickness <float>]
+python visual_hull.py \
+  --name 0 \
+  --calibration_path data/calibration/calibration_results.npy \
+  --min_detection 4 \
+  --margin 0.0 0.5 \
+  --visualization False
+# → writes per‑class 3D bboxes to data/bbox3d/0/
 ```
 
-**Flags**
-- `--name`: target case ID (required)
-- `--calibration_path`: calibration results (default: `./data/calibration/calibration_results.npy`)
-- `--margin`: fractional margins `[x y]` to pad the 3D box (default: `[0.1, 0.1]`)
-- `--min_detection`: minimum number of views required (default: `4`)
-- `--visualization`: enable 3D viewer (default: `False`)
-- `--line_thickness`: visualization line width (default: `5.0`)
+### 4) Evaluation (3D→2D IoU)
+<p align="center">
+<p align="center">
+  <img src="assets/evaluation.png" width="45%" alt="Evaluation: 3D→2D projection vs GT"><br/>
+  <em>
+    Projection of predicted 3D bounding boxes into each view vs. detector 2D ground truth.
+    🟩 <b>Green</b> = Ground Truth, 🟪 <b>Purple</b> = 3D Projection.
+  </em>
+</p>
 
-**Output**
-- 3D bbox JSON saved under: `data/bbox3d/<ID>/`  
-- Optional Open3D viewer when `--visualization True`
+```bash
+python eval.py --id 0 --save_images
+# → saves overlays under data/eval_results/0/ and summary JSON in data/eval_results/
+```
 
----
-
-## Calibration
-
-If camera calibration is required before reconstruction, see:
-
-- **[docs/README_Calibration.md](docs/README_Calibration.md)**
-
-Provide your calibration result to `--calibration_path` when running `3_visual_hull.py`.
-
----
-
-## Sample Data
-
-Use the following sample bundle to quickly try the pipeline:
-
-- **Sample data**: <https://drive.google.com/drive/folders/1dfA5emcWmJ3lqxDM7yLRvWFF0AL54LfD>
+### One‑Command Demo
+```bash
+python run.py --id 0 --vis
+# runs detector.py → visual_hull.py (with optional viewer)
+```
 
 ---
 
-## Troubleshooting
+## 🧪 2D Detector (Training / Eval / Standalone Inference)
+The training code and configs are isolated under `detector2d/` so you can iterate on the detector independently of the 3D pipeline.
 
-- **No detections or too few views**
-  - Lower `--conf-thres` (e.g., `0.05`), ensure images are correctly placed under `data/raw_image/<ID>/`.
-  - Confirm the YOLO checkpoint path (`--model`) is valid.
+<p align="center">
+  <img src="assets/detector2d_data.png" width="55%" alt="detector2d"><br/>
+  2D X-Ray Dataset
+</p>
 
-- **3D bbox is missing or degenerate**
-  - Check `--min_detection` (needs enough views).
-  - Verify calibration file and ID consistency.
-  - Increase `--margin` slightly to avoid over-tight clipping.
+### Dataset
+- **Format**: YOLO (normalized `cx cy w h` per line).
+- **Splits**:
+  - **Train**: 212,119 images
+  - **Val**: 24,104 images
+  - **Test**: 24,236 images
+- **Classes**: 66 classes (the config lists `nc: 67` because it includes a `"None"` placeholder at index 0).
+- **Config**: `detector2d/configs/config.yaml` defines split paths and the class taxonomy.
 
-- **Slow or CPU-bound**
-  - Install CUDA-enabled PyTorch and make sure your drivers are up to date.
-  - Ensure Open3D is installed with GPU support only if needed (CPU is fine for most cases).
+**Due to license restrictions, we cannot release our internal dataset.**  
+However, you can use an open-source alternative such as the AI-Hub X-ray security dataset:
+- **AI-Hub:** [Link](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71442)
 
-- **Paths & permissions**
-  - Make sure the repository has read/write access to `data/*` folders.
+> Tip: If the dataset does not already follow YOLO format, convert labels to normalized `cx cy w h` per image to train with `detector2d/configs/config.yaml`.
+
+
+### Train
+```bash
+python detector2d/train.py
+# uses detector2d/configs/config.yaml
+# multi‑GPU supported via Ultralytics; adjust device list and batch size
+```
+
+### Evaluate detector
+
+<p align="center">
+  <img src="assets/detector2d_eval.png" width="55%" alt="detector2d"><br/>
+  Evaluation results
+</p>
+
+```bash
+python detector2d/eval.py
+```
+
+The evaluation results for the provided pretrained checkpoints are as follows: 
+| Class                         | Images | Instances | Box(P) | Box(R) | mAP50 | mAP50-95 |
+|-------------------------------|--------|-----------|--------|--------|-------|----------|
+| all                           | 24104  | 31292     | 0.975  | 0.932  | 0.953 | 0.871    |
+
+
+### Standalone inference
+
+<p align="center">
+  <img src="assets/detector2d_inference.png" width="55%" alt="detector2d"><br/>
+  Model inference results
+</p>
+
+```bash
+python detector2d/inference.py \
+  --input detector2d/data/images/test \
+  --ckpt runs/train/yolo11x/weights/best.pt \
+  --output out/infer \
+  --save_annot
+```
+
+> The pipeline’s root `detector.py` remains unchanged and writes JSON/overlays to `data/bbox2d/<ID>` as expected by the 3D step.
 
 ---
 
-## License & Acknowledgments
+## 🔧 Configuration & Parameters
 
-- Please add your project’s **license** here (e.g., MIT, Apache-2.0).
-- This work uses **Ultralytics YOLO** and **Open3D**; please respect their respective licenses.
+- **Calibration**
+  - `DSD` (mm): nominal 1100 (tune per scanner).
+  - `iter`: 10k typical; Adam with `lr=0.1`; optional LR schedulers.
+- **Detector (pipeline inference)**
+  - `--conf-thres`: default 0.1 for high recall.
+- **Visual Hull**
+  - `--min_detection`: default 4 (required number of supporting views).
+  - `--margin`: `(x_margin, y_margin)` as proportions; default `(0.0, 0.5)`.
+- **Evaluation**
+  - Reprojection uses perspective‑X and orthographic‑Y to form 2D bboxes.
 
 ---
 
-## Fanbeam calibration
-![Example GIF](figs/calibration.gif)
+## 🧰 Troubleshooting
 
+- **No visual hull found**
+  - Check calibration alignment and that image/JSON view indices match.
+  - Relax `--margin` or detector `--conf-thres` to increase recall.
+- **Inconsistent scale**
+  - Ensure voxel NPY filename encodes dimensions like `*_512x512x619.npy`.
+  - The pipeline rescales image height to voxel height internally.
+- **Sparse views**
+  - Use fewer required views (`--min_detection 3`) and increase `y_margin`.
 
+---
 
-## Bbox fitting with Visual hull
-![IMAGE](figs/visualhull.gif)
+## 📜 License
 
+The model is licensed under the [Apache 2.0 license](LICENSE).
 
+## 🤗 Contributing
 
+See [contributing](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
+
+## 🙌 Acknowledgements
+The 2D Detection Model was built apon the [Ultralytics](https://www.ultralytics.com/) YOLO Model. For deeper background and ablations, please refer to the accompanying [technical report](report.pdf).
+
+---
+
+## 📚 Citation
+If this project or its data/models are useful in your research, please consider citing:
+
+```bibtex
+@misc{3dxray2024,
+  author = {SECERN AI},
+  title  = {Multiview X‑Ray 3D Hazardous Object Detection},
+  year   = {2024},
+  url    = {https://github.com/yc4ny/3D-Xray-Object-Detection}
+}
+```
