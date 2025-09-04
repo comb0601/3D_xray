@@ -4,7 +4,7 @@
   <img src="assets/teaser.png" width="100%" alt="teaser">
 </p>
 
-Robust end‑to‑end pipeline for reconstructing **3D bounding boxes of hazardous objects from multiview X‑ray images**. The system couples a high‑recall YOLO‑based 2D detector with a **visual‑hull** intersection and a **fan‑beam camera geometry** that treats **X as perspective** and **Y as near‑orthographic**, enabling stable height reasoning and efficient 3D recovery even when views are cluttered or partially occluded.
+Robust end‑to‑end pipeline for reconstructing **3D bounding boxes of hazardous objects from multiview X‑ray images**. The system couples a high‑recall YOLO‑based 2D detector with a **visual‑hull** intersection and a **fan‑beam camera geometry** that treats **X as perspective** and **Y as independent**, enabling stable height reasoning and efficient 3D recovery even when views are cluttered or partially occluded.
 
 ---
 
