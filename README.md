@@ -327,6 +327,6 @@ If this project or its data/models are useful in your research, please consider 
   author = {SECERN AI},
   title  = {Multiview X‑Ray 3D Hazardous Object Detection},
   year   = {2024},
-  url    = {https://github.com/yc4ny/3D-Xray-Object-Detection}
+  url    = {https://github.com/comb0601/3D_Xray}
 }
 ```
